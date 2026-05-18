@@ -337,9 +337,9 @@ const SHARED_KEY  = 'sagoLoco2026loyalty';
 const ADMIN_KEY = 'sagoLoco_admin_v1';
 
 let pinBuffer = '';
-let adminData  = null;   // { customers: { [cardId]: {...} } }
-let activeCard = null;   // currently looked-up customer object + cardId ref
-let activeId   = null;
+let adminData  = null;   // { customers: { [displayId]: {...} } }
+let activeCard = null;   // currently looked-up customer object
+let activeId   = null;   // displayId of active customer
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function escHtml(s) {
@@ -433,37 +433,27 @@ function lookupCard() {
   const raw = document.getElementById('search-input').value.trim().toUpperCase();
   if (!raw) { showToast('Enter a card ID.', 'error'); return; }
 
-  // Accept either displayId (SL-XXXX) or full cardId (UUID)
-  const found = findCustomer(raw);
-  if (found) {
-    activeId   = found.cardId;
-    activeCard = found;
+  // Normalise: accept "A3F2" or "SL-A3F2"
+  const displayId = raw.startsWith('SL-') ? raw : 'SL-' + raw;
+
+  document.getElementById('receipt-box').classList.remove('show');
+
+  if (adminData.customers[displayId]) {
+    activeId   = displayId;
+    activeCard = adminData.customers[displayId];
     renderCustomerPanel();
-    document.getElementById('receipt-box').classList.remove('show');
   } else {
-    // New customer — create entry
-    const displayId = raw.startsWith('SL-') ? raw : 'SL-' + raw.slice(-4);
-    const cardId = raw; // treat input as cardId if not found
-    adminData.customers[cardId] = { displayId, stamps: 0, history: [], redeemCount: 0, firstSeen: new Date().toISOString() };
+    // New customer — create entry keyed by displayId
+    adminData.customers[displayId] = { displayId, stamps: 0, history: [], redeemCount: 0, firstSeen: new Date().toISOString() };
     saveAdmin();
-    activeId   = cardId;
-    activeCard = adminData.customers[cardId];
+    activeId   = displayId;
+    activeCard = adminData.customers[displayId];
     renderCustomerPanel();
     renderCustList();
     showToast('New customer registered! 👋', 'success');
-    document.getElementById('receipt-box').classList.remove('show');
   }
 }
 
-function findCustomer(query) {
-  // Try exact cardId match first, then displayId match
-  const custs = adminData.customers;
-  if (custs[query]) return { ...custs[query], cardId: query };
-  for (const [id, c] of Object.entries(custs)) {
-    if (c.displayId === query || c.displayId === 'SL-' + query) return { ...c, cardId: id };
-  }
-  return null;
-}
 
 // ── Customer Panel ─────────────────────────────────────────────────────────
 function renderCustomerPanel() {
@@ -474,7 +464,7 @@ function renderCustomerPanel() {
 
   document.getElementById('cp-id').textContent = escHtml(c.displayId);
   document.getElementById('cp-meta').textContent =
-    `Redeemed: ${c.redeemCount || 0}× · Card: ${escHtml(activeId.slice(0,8))}…`;
+    `Redeemed: ${c.redeemCount || 0}× · Card ID: ${escHtml(activeId)}`;
 
   // Mini stamps
   let msHtml = '';
@@ -588,7 +578,7 @@ function renderCustList() {
       : c.stamps > 0
         ? `<span class="cust-badge badge-collecting">${c.stamps}/5 stamps</span>`
         : `<span class="cust-badge badge-new">New</span>`;
-    html += `<li class="cust-row" onclick="selectFromList('${escHtml(id)}')">
+    html += `<li class="cust-row" onclick="selectFromList('${escHtml(c.displayId)}')">
       <div>
         <div class="cust-id">${escHtml(c.displayId)}</div>
         <div class="cust-stamps">${c.stamps}/5 · Redeemed ${c.redeemCount||0}×</div>
@@ -600,12 +590,12 @@ function renderCustList() {
   body.innerHTML = html;
 }
 
-function selectFromList(cardId) {
-  const c = adminData.customers[cardId];
+function selectFromList(displayId) {
+  const c = adminData.customers[displayId];
   if (!c) return;
-  activeId   = cardId;
+  activeId   = displayId;
   activeCard = c;
-  document.getElementById('search-input').value = c.displayId;
+  document.getElementById('search-input').value = displayId;
   renderCustomerPanel();
   document.getElementById('receipt-box').classList.remove('show');
   document.getElementById('customer-panel').scrollIntoView({ behavior:'smooth', block:'nearest' });

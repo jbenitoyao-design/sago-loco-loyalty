@@ -348,7 +348,7 @@ function processRecv() {
     const d = JSON.parse(atob(recv));
     if (!d.id || typeof d.s !== 'number' || !d.ev || !d.sig) return;
     if (d.sig !== sign(d.id, d.s, d.ev)) { showToast('Invalid stamp receipt.', 'error'); return; }
-    if (card.cardId !== d.id) { showToast('This receipt is for a different card.', 'error'); return; }
+    if (card.displayId !== d.id) { showToast('This receipt is for a different card.', 'error'); return; }
 
     if (d.ev === 'stamp') {
       card.stamps = d.s;
@@ -404,10 +404,9 @@ function render() {
   }
 }
 
-// ── QR (encodes the cardId — cashier scans to identify) ────────────────────
+// ── QR (encodes the displayId — cashier reads or scans to identify) ────────
 function setQrCode() {
-  // QR encodes just the cardId text so cashier can read it
-  const enc = encodeURIComponent(card.cardId);
+  const enc = encodeURIComponent(card.displayId);
   document.getElementById('qr-img').src =
     `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${enc}`;
 }
