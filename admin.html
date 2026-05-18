@@ -368,9 +368,9 @@ function sign(id, stamps, ev) {
 // ── Admin Storage ──────────────────────────────────────────────────────────
 function loadAdmin() {
   try { return JSON.parse(localStorage.getItem(ADMIN_KEY)) || { customers: {} }; }
-  catch { return { customers: {} }; }
+  catch(e) { return { customers: {} }; }
 }
-function saveAdmin() { localStorage.setItem(ADMIN_KEY, JSON.stringify(adminData)); }
+function saveAdmin() { try { localStorage.setItem(ADMIN_KEY, JSON.stringify(adminData)); } catch(e) {} }
 
 // ── PIN Gate ───────────────────────────────────────────────────────────────
 function renderGateKeypad() {

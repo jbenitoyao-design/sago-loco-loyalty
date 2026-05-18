@@ -328,9 +328,11 @@ function sign(id, stamps, ev) {
 
 // ── Storage ────────────────────────────────────────────────────────────────
 function loadCard() {
-  try { return JSON.parse(localStorage.getItem(LOYALTY_KEY)); } catch { return null; }
+  try { return JSON.parse(localStorage.getItem(LOYALTY_KEY)); } catch(e) { return null; }
 }
-function saveCard() { localStorage.setItem(LOYALTY_KEY, JSON.stringify(card)); }
+function saveCard() {
+  try { localStorage.setItem(LOYALTY_KEY, JSON.stringify(card)); } catch(e) {}
+}
 
 function createCard() {
   const cardId = uid();
@@ -423,13 +425,17 @@ function animateLastStamp() {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 function init() {
-  card = loadCard();
-  if (!card) createCard();
-  processRecv(); // apply cashier receipt if present
-  render();
-  setQrCode();
-  // Animate if stamp was just received
-  if (new URLSearchParams(window.location.search).get('recv')) animateLastStamp();
+  try {
+    card = loadCard();
+    if (!card) createCard();
+    processRecv();
+    render();
+    setQrCode();
+    if (new URLSearchParams(window.location.search).get('recv')) animateLastStamp();
+  } catch(e) {
+    if (!card) card = { cardId: 'tmp', displayId: 'SL-0000', stamps: 0, history: [], redeemCount: 0 };
+    try { render(); } catch(e2) {}
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
