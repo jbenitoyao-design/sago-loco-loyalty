@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sago Loco — Loyalty Card</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
   :root {
     --purple: #6B21A8;
@@ -199,6 +200,46 @@
   #toast.success { background: var(--green-border); }
   #toast.error   { background: var(--red); }
 
+  /* ── Scan Receipt Button ─────────────────── */
+  .btn-scan-receipt {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; margin-top: 10px;
+    background: var(--purple-dark); color: #fff;
+    border: none; border-radius: var(--radius-sm);
+    padding: 11px 20px; font-size: 0.88rem; font-weight: 700;
+    min-height: 44px; cursor: pointer;
+    transition: filter 0.15s, transform 0.1s;
+  }
+  .btn-scan-receipt:hover { filter: brightness(1.1); }
+  .btn-scan-receipt:active { transform: scale(0.97); }
+
+  /* ── Scan Overlay (shared with admin style) ── */
+  .scan-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.92);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 600; padding: 24px;
+  }
+  .scan-title { color: #fff; font-size: 1rem; font-weight: 700; margin-bottom: 20px; text-align: center; }
+  .scan-viewport {
+    position: relative;
+    width: min(280px, 80vw); aspect-ratio: 1;
+    border-radius: 16px; overflow: hidden;
+    border: 3px solid var(--yellow);
+    box-shadow: 0 0 0 4000px rgba(0,0,0,0.6);
+    margin-bottom: 20px;
+  }
+  .scan-viewport video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .scan-hint { color: rgba(255,255,255,0.7); font-size: 0.82rem; text-align: center; margin-bottom: 20px; }
+  .btn-scan-cancel {
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.3);
+    color: #fff; font-size: 0.9rem; font-weight: 700;
+    padding: 10px 28px; border-radius: 99px;
+    cursor: pointer; min-height: 44px;
+  }
+
   .hidden { display: none !important; }
 
   @keyframes fade-in {
@@ -239,6 +280,7 @@
       <div class="card-body">
         <div class="stamp-grid" id="stamp-grid"></div>
         <p class="progress-label" id="progress-label">0 / 5 stamps collected</p>
+        <button class="btn-scan-receipt" onclick="startReceiptScan()">📷 Scan Cashier's QR</button>
       </div>
     </div>
   </section>
@@ -286,6 +328,17 @@
   </section>
 
 </div>
+
+<!-- Receipt Scan Overlay -->
+<div id="receipt-scan-overlay" class="scan-overlay hidden">
+  <p class="scan-title">📷 Scan Cashier's Receipt QR</p>
+  <div class="scan-viewport">
+    <video id="receipt-scan-video" playsinline autoplay muted></video>
+  </div>
+  <p class="scan-hint">Point at the QR code on the cashier's screen</p>
+  <button class="btn-scan-cancel" onclick="stopReceiptScan()">Cancel</button>
+</div>
+<canvas id="receipt-scan-canvas" style="display:none"></canvas>
 
 <div id="toast"></div>
 
@@ -343,32 +396,94 @@ function createCard() {
 
 // ── Process incoming stamp receipt from cashier ────────────────────────────
 function processRecv() {
-  const params = new URLSearchParams(window.location.search);
-  const recv = params.get('recv');
+  const recv = new URLSearchParams(window.location.search).get('recv');
+  if (recv) {
+    processRecvValue(recv);
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+}
+
+function processRecvValue(recv) {
   if (!recv) return;
   try {
     const d = JSON.parse(atob(recv));
     if (!d.id || typeof d.s !== 'number' || !d.ev || !d.sig) return;
-    if (d.sig !== sign(d.id, d.s, d.ev)) { showToast('Invalid stamp receipt.', 'error'); return; }
+    if (d.sig !== sign(d.id, d.s, d.ev)) { showToast('Invalid receipt — wrong store?', 'error'); return; }
     if (card.displayId !== d.id) { showToast('This receipt is for a different card.', 'error'); return; }
 
     if (d.ev === 'stamp') {
       card.stamps = d.s;
       card.history.push({ type:'stamp', iso: new Date().toISOString(), label:`Stamp #${d.s}` });
+      saveCard();
+      render();
       showToast(`Stamp #${d.s} added! 🥭`, 'success');
     } else if (d.ev === 'redeem') {
       card.stamps = 0;
       card.history.push({ type:'redeem', iso: new Date().toISOString(), label:'🎉 Free Drink Redeemed' });
       card.redeemCount = (card.redeemCount || 0) + 1;
-      // Show thank-you briefly
+      saveCard();
       document.getElementById('sec-reward').classList.add('hidden');
       const ty = document.getElementById('sec-thankyou');
       ty.classList.remove('hidden');
       setTimeout(() => { ty.classList.add('hidden'); render(); }, 2500);
+      showToast('Redeemed! Enjoy your free drink! 🧡', 'success');
     }
-    saveCard();
-    window.history.replaceState({}, '', window.location.pathname);
   } catch(e) {}
+}
+
+// ── Receipt QR Scanner ─────────────────────────────────────────────────────
+let receiptScanStream = null;
+let receiptScanTimer  = null;
+
+async function startReceiptScan() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('Camera not supported on this browser.', 'error'); return;
+  }
+  if (typeof jsQR === 'undefined') {
+    showToast('QR library not loaded. Check connection.', 'error'); return;
+  }
+  document.getElementById('receipt-scan-overlay').classList.remove('hidden');
+  try {
+    receiptScanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } }
+    });
+    const video = document.getElementById('receipt-scan-video');
+    video.srcObject = receiptScanStream;
+    await video.play();
+    receiptScanTimer = setTimeout(receiptScanFrame, 200);
+  } catch(e) {
+    stopReceiptScan();
+    showToast('Camera access denied.', 'error');
+  }
+}
+
+function receiptScanFrame() {
+  const video  = document.getElementById('receipt-scan-video');
+  const canvas = document.getElementById('receipt-scan-canvas');
+  if (!receiptScanStream || video.readyState < video.HAVE_ENOUGH_DATA) {
+    receiptScanTimer = setTimeout(receiptScanFrame, 200); return;
+  }
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+  if (code && code.data) {
+    stopReceiptScan();
+    let recv = code.data.trim();
+    // Extract recv param if QR contains a full URL
+    try { const u = new URL(recv); const r = u.searchParams.get('recv'); if (r) recv = r; } catch(e) {}
+    processRecvValue(recv);
+  } else {
+    receiptScanTimer = setTimeout(receiptScanFrame, 200);
+  }
+}
+
+function stopReceiptScan() {
+  if (receiptScanTimer)  { clearTimeout(receiptScanTimer);  receiptScanTimer  = null; }
+  if (receiptScanStream) { receiptScanStream.getTracks().forEach(t => t.stop()); receiptScanStream = null; }
+  document.getElementById('receipt-scan-overlay').classList.add('hidden');
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────

@@ -246,6 +246,41 @@
 
   .hidden { display: none !important; }
 
+  /* ── Customer Stats ─────────────────────── */
+  .cp-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin-bottom: 12px;
+  }
+  .cp-stat {
+    background: var(--gray-100); border-radius: var(--radius-sm);
+    padding: 9px 8px; text-align: center;
+  }
+  .cp-stat-num { font-size: 1.35rem; font-weight: 800; color: var(--purple); line-height: 1; }
+  .cp-stat-label { font-size: 0.65rem; color: var(--gray-500); font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 3px; }
+  .cp-stat.highlight .cp-stat-num { color: var(--green-border); }
+
+  .btn-history-toggle {
+    background: none; border: 1px solid var(--gray-200);
+    color: var(--gray-500); font-size: 0.75rem; font-weight: 700;
+    padding: 5px 14px; border-radius: 99px; cursor: pointer;
+    margin-top: 10px; min-height: 32px; transition: background 0.15s;
+  }
+  .btn-history-toggle:hover { background: var(--gray-100); }
+
+  .cp-history-wrap { margin-top: 10px; }
+  .cp-history-title {
+    font-size: 0.72rem; font-weight: 700; color: var(--gray-500);
+    text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px;
+  }
+  .cp-history-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0; border-bottom: 1px solid var(--gray-100); font-size: 0.8rem; gap: 6px;
+  }
+  .cp-history-item:last-child { border-bottom: none; }
+  .cp-history-stamp  { color: var(--purple); font-weight: 600; flex-shrink: 0; }
+  .cp-history-redeem { color: var(--green-border); font-weight: 600; flex-shrink: 0; }
+  .cp-history-time   { color: var(--gray-500); font-size: 0.72rem; text-align: right; }
+
   /* ── QR Scanner ──────────────────────────── */
   .btn-scan {
     background: var(--yellow);
@@ -361,10 +396,16 @@
           <div id="customer-panel" class="customer-panel hidden">
             <p class="cp-id" id="cp-id">SL-XXXX</p>
             <p class="cp-meta" id="cp-meta"></p>
+            <div class="cp-stats" id="cp-stats"></div>
             <div class="mini-stamps" id="mini-stamps"></div>
             <p class="cp-progress" id="cp-progress"></p>
             <button class="btn btn-stamp" id="btn-stamp" onclick="doStamp()">+ Add Stamp</button>
             <button class="btn btn-redeem hidden" id="btn-redeem" onclick="doRedeem()">🎉 Mark as Redeemed</button>
+            <button class="btn-history-toggle" id="btn-history-toggle" onclick="toggleHistory()">📋 Show History</button>
+            <div id="cp-history-wrap" class="cp-history-wrap hidden">
+              <p class="cp-history-title">Activity Log</p>
+              <div id="cp-history"></div>
+            </div>
           </div>
 
           <!-- Receipt QR (shown after stamp/redeem) -->
@@ -545,8 +586,16 @@ function renderCustomerPanel() {
   panel.classList.toggle('reward', c.stamps >= 5);
 
   document.getElementById('cp-id').textContent = escHtml(c.displayId);
-  document.getElementById('cp-meta').textContent =
-    `Redeemed: ${c.redeemCount || 0}× · Card ID: ${escHtml(activeId)}`;
+  document.getElementById('cp-meta').textContent = `Card ID: ${escHtml(activeId)}`;
+
+  // Lifetime stats
+  const totalStamps    = (c.history || []).filter(h => h.type === 'stamp').length;
+  const completedCards = c.redeemCount || 0;
+  document.getElementById('cp-stats').innerHTML = `
+    <div class="cp-stat"><div class="cp-stat-num">${totalStamps}</div><div class="cp-stat-label">Total Stamps</div></div>
+    <div class="cp-stat highlight"><div class="cp-stat-num">${completedCards}</div><div class="cp-stat-label">Free Drinks</div></div>
+    <div class="cp-stat"><div class="cp-stat-num">${c.stamps}</div><div class="cp-stat-label">This Card</div></div>
+  `;
 
   // Mini stamps
   let msHtml = '';
@@ -566,6 +615,21 @@ function renderCustomerPanel() {
 
   document.getElementById('btn-stamp').disabled = c.stamps >= 5;
   document.getElementById('btn-redeem').classList.toggle('hidden', c.stamps < 5);
+
+  // History log
+  const hist = [...(c.history || [])].reverse();
+  const hEl = document.getElementById('cp-history');
+  if (!hist.length) {
+    hEl.innerHTML = '<p style="color:var(--gray-500);font-size:0.8rem;padding:8px 0">No activity yet.</p>';
+  } else {
+    hEl.innerHTML = hist.map(e => {
+      const cls = e.type === 'redeem' ? 'cp-history-redeem' : 'cp-history-stamp';
+      return `<div class="cp-history-item"><span class="${cls}">${escHtml(e.label)}</span><span class="cp-history-time">${escHtml(fmtDateTime(e.iso))}</span></div>`;
+    }).join('');
+  }
+  // Reset history toggle to collapsed when switching customers
+  document.getElementById('cp-history-wrap').classList.add('hidden');
+  document.getElementById('btn-history-toggle').textContent = '📋 Show History';
 }
 
 // ── Stamp ──────────────────────────────────────────────────────────────────
@@ -681,6 +745,14 @@ function selectFromList(displayId) {
   renderCustomerPanel();
   document.getElementById('receipt-box').classList.remove('show');
   document.getElementById('customer-panel').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+// ── History Toggle ─────────────────────────────────────────────────────────
+function toggleHistory() {
+  const wrap = document.getElementById('cp-history-wrap');
+  const btn  = document.getElementById('btn-history-toggle');
+  const hide = wrap.classList.toggle('hidden');
+  btn.textContent = hide ? '📋 Show History' : '📋 Hide History';
 }
 
 // ── QR Scanner ────────────────────────────────────────────────────────────
