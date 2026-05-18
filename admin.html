@@ -413,9 +413,10 @@ const SHARED_KEY  = 'sagoLoco2026loyalty';
 const ADMIN_KEY = 'sagoLoco_admin_v1';
 
 let pinBuffer = '';
-let adminData  = null;   // { customers: { [displayId]: {...} } }
-let activeCard = null;   // currently looked-up customer object
-let activeId   = null;   // displayId of active customer
+let adminData        = null;   // { customers: { [displayId]: {...} } }
+let activeCard       = null;
+let activeId         = null;   // displayId of active customer
+let pendingCardScan  = null;   // card ID from ?card= URL param, applied after PIN
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function escHtml(s) {
@@ -485,6 +486,11 @@ function gateValidate() {
     document.getElementById('main').classList.remove('hidden');
     adminData = loadAdmin();
     renderCustList();
+    if (pendingCardScan) {
+      document.getElementById('search-input').value = pendingCardScan;
+      lookupCard();
+      pendingCardScan = null;
+    }
   } else {
     const dots = document.getElementById('gate-dots');
     dots.classList.add('shake');
@@ -717,8 +723,14 @@ function scanFrame() {
   const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
   if (code && code.data) {
     stopScan();
-    const val = code.data.trim().toUpperCase();
-    document.getElementById('search-input').value = val;
+    let val = code.data.trim();
+    // If QR encodes a full URL (e.g. admin.html?card=SL-XXXX), extract the card param
+    try {
+      const u = new URL(val);
+      const c = u.searchParams.get('card');
+      if (c) val = c;
+    } catch(e) {}
+    document.getElementById('search-input').value = val.toUpperCase();
     lookupCard();
   } else {
     scanTimer = setTimeout(scanFrame, 200);
@@ -734,6 +746,10 @@ function stopScan() {
 // ── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   renderGateKeypad();
+  // If opened via native camera scan from customer's QR, store card for after PIN
+  const params = new URLSearchParams(window.location.search);
+  const cardParam = params.get('card');
+  if (cardParam) pendingCardScan = cardParam.trim().toUpperCase();
 });
 </script>
 </body>

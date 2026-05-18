@@ -406,11 +406,12 @@ function render() {
   }
 }
 
-// ── QR (encodes the displayId — cashier reads or scans to identify) ────────
+// ── QR (encodes admin URL so native camera scan opens admin directly) ───────
 function setQrCode() {
-  const enc = encodeURIComponent(card.displayId);
+  const adminUrl = window.location.href.replace(/loyalty\.html.*$/, 'admin.html')
+    + '?card=' + encodeURIComponent(card.displayId);
   document.getElementById('qr-img').src =
-    `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${enc}`;
+    `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(adminUrl)}`;
 }
 
 // ── Animate newly received stamp ───────────────────────────────────────────
