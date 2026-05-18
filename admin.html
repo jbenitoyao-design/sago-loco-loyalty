@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sago Loco — Cashier Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
   :root {
     --purple: #6B21A8;
@@ -244,6 +245,68 @@
   #toast.error   { background: var(--red); }
 
   .hidden { display: none !important; }
+
+  /* ── QR Scanner ──────────────────────────── */
+  .btn-scan {
+    background: var(--yellow);
+    color: var(--purple-dark);
+    font-weight: 800;
+    font-size: 1rem;
+    width: 100%;
+    padding: 13px 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: filter 0.15s, transform 0.1s;
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 10px;
+  }
+  .btn-scan:hover { filter: brightness(1.05); }
+  .btn-scan:active { transform: scale(0.97); }
+
+  .scan-divider {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 10px; color: var(--gray-500); font-size: 0.75rem; font-weight: 600;
+  }
+  .scan-divider::before, .scan-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--gray-200);
+  }
+
+  .scan-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.92);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 600; padding: 24px;
+  }
+  .scan-title {
+    color: #fff; font-size: 1rem; font-weight: 700;
+    margin-bottom: 20px; text-align: center;
+  }
+  .scan-viewport {
+    position: relative;
+    width: min(280px, 80vw);
+    aspect-ratio: 1;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 3px solid var(--yellow);
+    box-shadow: 0 0 0 4000px rgba(0,0,0,0.6);
+    margin-bottom: 20px;
+  }
+  #scan-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .scan-hint { color: rgba(255,255,255,0.7); font-size: 0.82rem; text-align: center; margin-bottom: 20px; }
+  .btn-scan-cancel {
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.3);
+    color: #fff; font-size: 0.9rem; font-weight: 700;
+    padding: 10px 28px; border-radius: 99px;
+    cursor: pointer; min-height: 44px;
+  }
 </style>
 </head>
 <body>
@@ -283,9 +346,11 @@
       <div class="card">
         <div class="card-header">🔍 Look Up Customer Card</div>
         <div class="card-body">
+          <button class="btn-scan" onclick="startScan()">📷 Scan Customer's Card</button>
+          <div class="scan-divider">or type manually</div>
           <div class="search-row">
             <input id="search-input" class="search-input" type="text"
-              placeholder="Card ID e.g. SL-A3F2"
+              placeholder="e.g. SL-A3F2"
               maxlength="40"
               oninput="this.value = this.value.toUpperCase()"
               onkeydown="if(event.key==='Enter') lookupCard()">
@@ -323,6 +388,17 @@
 
   </div>
 </div>
+
+<!-- QR Scan Overlay -->
+<div id="scan-overlay" class="scan-overlay hidden">
+  <p class="scan-title">📷 Scan Customer's Card QR</p>
+  <div class="scan-viewport">
+    <video id="scan-video" playsinline autoplay muted></video>
+  </div>
+  <p class="scan-hint">Point the camera at the QR code on the customer's phone</p>
+  <button class="btn-scan-cancel" onclick="stopScan()">Cancel</button>
+</div>
+<canvas id="scan-canvas" style="display:none"></canvas>
 
 <div id="toast"></div>
 
@@ -599,6 +675,60 @@ function selectFromList(displayId) {
   renderCustomerPanel();
   document.getElementById('receipt-box').classList.remove('show');
   document.getElementById('customer-panel').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+// ── QR Scanner ────────────────────────────────────────────────────────────
+let scanStream = null;
+let scanTimer  = null;
+
+async function startScan() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('Camera not supported on this browser.', 'error'); return;
+  }
+  if (typeof jsQR === 'undefined') {
+    showToast('QR library not loaded. Check connection.', 'error'); return;
+  }
+  document.getElementById('scan-overlay').classList.remove('hidden');
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } }
+    });
+    const video = document.getElementById('scan-video');
+    video.srcObject = scanStream;
+    await video.play();
+    scanTimer = setTimeout(scanFrame, 200);
+  } catch(e) {
+    stopScan();
+    showToast('Camera access denied. Use manual entry.', 'error');
+  }
+}
+
+function scanFrame() {
+  const video  = document.getElementById('scan-video');
+  const canvas = document.getElementById('scan-canvas');
+  if (!scanStream || video.readyState < video.HAVE_ENOUGH_DATA) {
+    scanTimer = setTimeout(scanFrame, 200); return;
+  }
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+  if (code && code.data) {
+    stopScan();
+    const val = code.data.trim().toUpperCase();
+    document.getElementById('search-input').value = val;
+    lookupCard();
+  } else {
+    scanTimer = setTimeout(scanFrame, 200);
+  }
+}
+
+function stopScan() {
+  if (scanTimer)  { clearTimeout(scanTimer);  scanTimer  = null; }
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  document.getElementById('scan-overlay').classList.add('hidden');
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
