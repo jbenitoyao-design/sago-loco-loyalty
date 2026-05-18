@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sago Loco — Daily Sales Tracker</title>
+<style>
+  :root {
+    --purple: #6B21A8;
+    --purple-light: #9333EA;
+    --purple-dark: #4C1D95;
+    --yellow: #FDE047;
+    --yellow-dark: #EAB308;
+    --green-bg: #DCFCE7;
+    --green-border: #16A34A;
+    --green-text: #14532D;
+    --red: #DC2626;
+    --red-light: #FEE2E2;
+    --gray-50: #F9FAFB;
+    --gray-100: #F3F4F6;
+    --gray-200: #E5E7EB;
+    --gray-300: #D1D5DB;
+    --gray-500: #6B7280;
+    --gray-700: #374151;
+    --gray-900: #111827;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg: 0 4px 20px rgba(107,33,168,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-900);
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  /* ── Header ─────────────────────────────── */
+  header {
+    background: var(--purple);
+    padding: 20px 16px 18px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(76,29,149,0.4);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 {
+    color: var(--yellow);
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  header p {
+    color: rgba(255,255,255,0.80);
+    font-size: 0.82rem;
+    margin-top: 3px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .header-bubble {
+    display: inline-block;
+    background: var(--yellow);
+    color: var(--purple-dark);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 99px;
+    margin-top: 6px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ──────────────────────────────── */
+  .container {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 16px 12px;
+  }
+
+  section { margin-bottom: 20px; }
+
+  .card {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .card-header {
+    background: var(--purple-dark);
+    color: #fff;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-header .icon { font-size: 1rem; }
+
+  .card-body { padding: 16px; }
+
+  /* ── Form ────────────────────────────────── */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  @media (max-width: 420px) {
+    .form-row { grid-template-columns: 1fr; }
+  }
+
+  label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  input[type="date"],
+  select,
+  input[type="text"],
+  input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    color: var(--gray-900);
+    background: var(--gray-50);
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input:focus, select:focus { border-color: var(--purple); background: #fff; }
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B21A8' stroke-width='2' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
+
+  /* ── Product Table ───────────────────────── */
+  .section-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--purple);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  .product-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  table.product-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    min-width: 320px;
+  }
+  table.product-table thead th {
+    background: var(--gray-100);
+    color: var(--gray-500);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 8px 8px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  table.product-table thead th:last-child { text-align: center; }
+  table.product-table tbody tr:nth-child(even) td { background: var(--gray-50); }
+  table.product-table tbody td {
+    padding: 6px 6px;
+    vertical-align: middle;
+  }
+  table.product-table tbody td input {
+    padding: 7px 8px;
+    font-size: 0.875rem;
+  }
+  table.product-table tbody td.subtotal-cell {
+    font-weight: 700;
+    color: var(--purple);
+    white-space: nowrap;
+    font-size: 0.875rem;
+    padding-right: 4px;
+  }
+  table.product-table tbody td.action-cell { text-align: center; }
+
+  .btn-remove {
+    background: none;
+    border: none;
+    color: var(--gray-300);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+  }
+  .btn-remove:hover { color: var(--red); background: var(--red-light); }
+
+  .btn-add-row {
+    margin-top: 10px;
+    background: none;
+    border: 1.5px dashed var(--purple-light);
+    color: var(--purple);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.15s;
+  }
+  .btn-add-row:hover { background: #F3E8FF; }
+
+  /* ── Entry Total ─────────────────────────── */
+  .entry-total-bar {
+    margin-top: 14px;
+    background: var(--purple-dark);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .entry-total-bar .label {
+    color: rgba(255,255,255,0.75);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .entry-total-bar .amount {
+    color: var(--yellow);
+    font-size: 1.4rem;
+    font-weight: 800;
+  }
+  .entry-items-info {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.75rem;
+    margin-top: 2px;
+  }
+
+  /* ── Buttons ─────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 11px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: filter 0.15s, transform 0.1s;
+    min-height: 44px;
+    letter-spacing: 0.2px;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: var(--purple);
+    color: #fff;
+    width: 100%;
+    margin-top: 14px;
+    font-size: 0.95rem;
+    box-shadow: var(--shadow-lg);
+  }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-danger {
+    background: var(--red);
+    color: #fff;
+  }
+  .btn-danger:hover { filter: brightness(1.1); }
+  .btn-export {
+    background: var(--yellow);
+    color: var(--purple-dark);
+    flex: 1;
+  }
+  .btn-export:hover { filter: brightness(1.05); }
+  .btn-clear-row {
+    background: none;
+    border: 1.5px solid var(--gray-200);
+    color: var(--gray-500);
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    min-height: 32px;
+    white-space: nowrap;
+  }
+  .btn-clear-row:hover { background: var(--red-light); color: var(--red); border-color: var(--red); }
+
+  /* ── Summary Table ───────────────────────── */
+  .summary-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    min-width: 420px;
+  }
+  table.summary-table thead th {
+    background: var(--gray-100);
+    color: var(--gray-500);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 10px 10px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  table.summary-table tbody tr {
+    border-bottom: 1px solid var(--gray-100);
+    transition: background 0.1s;
+  }
+  table.summary-table tbody tr.best-day {
+    background: var(--green-bg) !important;
+    border-left: 3px solid var(--green-border);
+  }
+  table.summary-table tbody td {
+    padding: 10px 10px;
+    vertical-align: middle;
+  }
+  table.summary-table tbody tr:nth-child(even):not(.best-day) td { background: var(--gray-50); }
+  .best-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--green-border);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 99px;
+    white-space: nowrap;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .branch-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 99px;
+    white-space: nowrap;
+  }
+  .branch-karuhatan { background: #EDE9FE; color: #5B21B6; }
+  .branch-puregold { background: #FEF9C3; color: #854D0E; }
+
+  .total-cell { font-weight: 700; color: var(--purple); }
+  .empty-state {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--gray-300);
+  }
+  .empty-state .icon { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+  .empty-state p { font-size: 0.85rem; }
+
+  /* ── Monthly Totals ──────────────────────── */
+  .month-select-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .month-select-row label { margin: 0; white-space: nowrap; }
+  .month-select-row input[type="month"] { flex: 1; }
+
+  .branch-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media (max-width: 380px) { .branch-cards { grid-template-columns: 1fr; } }
+  .branch-card {
+    border-radius: var(--radius-md);
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .branch-card.karuhatan { background: #EDE9FE; border: 1.5px solid #C4B5FD; }
+  .branch-card.puregold  { background: #FEF9C3; border: 1.5px solid #FDE047; }
+  .branch-card .bc-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--gray-500);
+    margin-bottom: 4px;
+  }
+  .branch-card.karuhatan .bc-label { color: #5B21B6; }
+  .branch-card.puregold  .bc-label { color: #854D0E; }
+  .branch-card .bc-name {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--gray-700);
+    margin-bottom: 6px;
+    line-height: 1.25;
+  }
+  .branch-card .bc-total {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--purple-dark);
+  }
+  .branch-card.puregold .bc-total { color: #854D0E; }
+  .branch-card .bc-items {
+    font-size: 0.72rem;
+    color: var(--gray-500);
+    margin-top: 2px;
+  }
+
+  /* ── Chart ───────────────────────────────── */
+  canvas#chart {
+    display: block;
+    width: 100%;
+    height: 180px;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  }
+  .chart-legend {
+    display: flex;
+    gap: 16px;
+    padding: 10px 16px 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  /* ── Footer Actions ──────────────────────── */
+  .footer-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  /* ── Toast ───────────────────────────────── */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--purple-dark);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 99px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: var(--shadow-lg);
+    transition: transform 0.3s ease;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.success { background: var(--green-border); }
+  #toast.error   { background: var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧋 Sago Loco Pearl Shakes</h1>
+  <p>Daily Sales Tracker</p>
+  <span class="header-bubble">2 Branches</span>
+</header>
+
+<div class="container">
+
+  <!-- ── Entry Form ───────────────────────── -->
+  <section>
+    <div class="card">
+      <div class="card-header"><span class="icon">📋</span> Add Sales Entry</div>
+      <div class="card-body">
+
+        <div class="form-row">
+          <div>
+            <label for="entry-date">Date</label>
+            <input type="date" id="entry-date">
+          </div>
+          <div>
+            <label for="entry-branch">Branch</label>
+            <select id="entry-branch">
+              <option value="Karuhatan">Karuhatan</option>
+              <option value="Puregold North Commonwealth">Puregold North Commonwealth</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="section-label">Product Breakdown</div>
+        <div class="product-table-wrap">
+          <table class="product-table">
+            <thead>
+              <tr>
+                <th>Product Name</th>
+                <th>Qty</th>
+                <th>Price (₱)</th>
+                <th>Subtotal</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="product-rows"></tbody>
+          </table>
+        </div>
+        <button class="btn-add-row" onclick="addProductRow()">+ Add Product</button>
+
+        <div class="entry-total-bar">
+          <div>
+            <div class="label">Entry Total</div>
+            <div class="entry-items-info" id="entry-items-info">0 items sold</div>
+          </div>
+          <div class="amount" id="entry-total">₱0</div>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveEntry()">💾 Save Entry</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Daily Summary ─────────────────────── -->
+  <section>
+    <div class="card">
+      <div class="card-header"><span class="icon">📊</span> Daily Summary</div>
+      <div class="summary-table-wrap">
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Branch</th>
+              <th>Products</th>
+              <th>Items Sold</th>
+              <th>Total Sales</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="summary-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Monthly Totals ────────────────────── -->
+  <section>
+    <div class="card">
+      <div class="card-header"><span class="icon">🗓️</span> Monthly Totals</div>
+      <div class="card-body">
+        <div class="month-select-row">
+          <label for="month-picker">Month:</label>
+          <input type="month" id="month-picker">
+        </div>
+        <div class="branch-cards" id="branch-cards"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Weekly Bar Chart ───────────────────── -->
+  <section>
+    <div class="card">
+      <div class="card-header"><span class="icon">📈</span> This Week's Sales</div>
+      <div class="chart-legend" id="chart-legend">
+        <span><span class="legend-dot" style="background:#6B21A8"></span>Karuhatan</span>
+        <span><span class="legend-dot" style="background:#EAB308"></span>Puregold North Commonwealth</span>
+      </div>
+      <canvas id="chart"></canvas>
+    </div>
+  </section>
+
+  <!-- ── Footer Actions ────────────────────── -->
+  <section>
+    <div class="footer-actions">
+      <button class="btn btn-export" onclick="exportCSV()">⬇️ Export CSV</button>
+      <button class="btn btn-danger" onclick="resetAll()">🗑️ Reset All</button>
+    </div>
+  </section>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'sagoLoco_sales';
+const BRANCHES = ['Karuhatan', 'Puregold North Commonwealth'];
+const DEFAULT_PRODUCTS = [
+  { name: 'Regular', qty: '', price: '' },
+  { name: 'Large',   qty: '', price: '' },
+  { name: 'Special', qty: '', price: '' },
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let entries = [];
+let productRows = [];
+
+// ── Init ───────────────────────────────────────────────────────────────────
+function init() {
+  entries = loadEntries();
+
+  // Date defaults to today
+  const today = new Date();
+  document.getElementById('entry-date').value = toDateStr(today);
+
+  // Month picker defaults to current month
+  const mp = document.getElementById('month-picker');
+  mp.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  mp.addEventListener('change', renderMonthly);
+
+  // Default product rows
+  productRows = DEFAULT_PRODUCTS.map(p => ({ ...p, id: uid() }));
+  renderProductRows();
+  render();
+}
+
+// ── localStorage ───────────────────────────────────────────────────────────
+function loadEntries() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+function saveEntries() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function uid() { return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2); }
+function toDateStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function fmtDate(str) {
+  const [y, m, d] = str.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[+m-1]} ${+d}, ${y}`;
+}
+function fmtPeso(n) { return '₱' + (+n).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type ? `show ${type}` : 'show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.className = ''; }, 2400);
+}
+
+// ── Product Row Management ─────────────────────────────────────────────────
+function addProductRow(name = '', qty = '', price = '') {
+  productRows.push({ id: uid(), name, qty, price });
+  renderProductRows();
+}
+function removeProductRow(id) {
+  if (productRows.length <= 1) { showToast('Need at least 1 product row.', 'error'); return; }
+  productRows = productRows.filter(r => r.id !== id);
+  renderProductRows();
+}
+function renderProductRows() {
+  const tbody = document.getElementById('product-rows');
+  tbody.innerHTML = productRows.map(row => `
+    <tr data-id="${row.id}">
+      <td><input type="text" placeholder="e.g. Regular" value="${escHtml(row.name)}" oninput="updateRow('${row.id}','name',this.value)"></td>
+      <td><input type="number" placeholder="0" min="0" value="${row.qty}" oninput="updateRow('${row.id}','qty',this.value)" style="width:64px"></td>
+      <td><input type="number" placeholder="0.00" min="0" step="0.01" value="${row.price}" oninput="updateRow('${row.id}','price',this.value)" style="width:80px"></td>
+      <td class="subtotal-cell">${fmtPeso(computeSubtotal(row))}</td>
+      <td class="action-cell"><button class="btn-remove" onclick="removeProductRow('${row.id}')" title="Remove row">×</button></td>
+    </tr>
+  `).join('');
+  updateEntryTotal();
+}
+function updateRow(id, field, value) {
+  const row = productRows.find(r => r.id === id);
+  if (!row) return;
+  row[field] = field === 'name' ? value : value;
+  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  if (tr) tr.querySelector('.subtotal-cell').textContent = fmtPeso(computeSubtotal(row));
+  updateEntryTotal();
+}
+function computeSubtotal(row) {
+  const q = parseFloat(row.qty) || 0;
+  const p = parseFloat(row.price) || 0;
+  return q * p;
+}
+function updateEntryTotal() {
+  let total = 0, items = 0;
+  productRows.forEach(r => {
+    total += computeSubtotal(r);
+    items += parseFloat(r.qty) || 0;
+  });
+  document.getElementById('entry-total').textContent = fmtPeso(total);
+  document.getElementById('entry-items-info').textContent = `${items} item${items !== 1 ? 's' : ''} sold`;
+}
+
+// ── Save Entry ─────────────────────────────────────────────────────────────
+function saveEntry() {
+  const date   = document.getElementById('entry-date').value;
+  const branch = document.getElementById('entry-branch').value;
+
+  if (!date) { showToast('Please select a date.', 'error'); return; }
+
+  const products = productRows
+    .filter(r => r.name.trim() && (parseFloat(r.qty) > 0 || parseFloat(r.price) > 0))
+    .map(r => ({ name: r.name.trim(), qty: parseFloat(r.qty) || 0, price: parseFloat(r.price) || 0 }));
+
+  if (products.length === 0) { showToast('Add at least one product with qty & price.', 'error'); return; }
+
+  const itemsSold = products.reduce((s, p) => s + p.qty, 0);
+  const total     = products.reduce((s, p) => s + p.qty * p.price, 0);
+
+  entries.push({ id: uid(), date, branch, products, itemsSold, total });
+  entries.sort((a, b) => b.date.localeCompare(a.date));
+  saveEntries();
+
+  // Reset form rows
+  productRows = DEFAULT_PRODUCTS.map(p => ({ ...p, id: uid() }));
+  renderProductRows();
+  render();
+  showToast('Entry saved! 🎉', 'success');
+}
+
+// ── Delete Entry ───────────────────────────────────────────────────────────
+function deleteEntry(id) {
+  if (!confirm('Remove this entry?')) return;
+  entries = entries.filter(e => e.id !== id);
+  saveEntries();
+  render();
+  showToast('Entry removed.');
+}
+
+// ── Render All ─────────────────────────────────────────────────────────────
+function render() {
+  renderSummary();
+  renderMonthly();
+  renderChart();
+}
+
+// ── Summary Table ──────────────────────────────────────────────────────────
+function renderSummary() {
+  const tbody = document.getElementById('summary-body');
+  if (entries.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><span class="icon">🧋</span><p>No entries yet. Add your first sale above!</p></div></td></tr>`;
+    return;
+  }
+  const bestId = entries.reduce((best, e) => (!best || e.total > best.total) ? e : best, null)?.id;
+  tbody.innerHTML = entries.map(e => {
+    const isBest = e.id === bestId;
+    const branchClass = e.branch === 'Karuhatan' ? 'branch-karuhatan' : 'branch-puregold';
+    const shortBranch = e.branch === 'Karuhatan' ? 'Karuhatan' : 'Puregold NC';
+    return `<tr class="${isBest ? 'best-day' : ''}">
+      <td>${fmtDate(e.date)}${isBest ? '<span class="best-badge">★ Best Day</span>' : ''}</td>
+      <td><span class="branch-tag ${branchClass}">${shortBranch}</span></td>
+      <td>${e.products.length} product${e.products.length !== 1 ? 's' : ''}</td>
+      <td>${e.itemsSold}</td>
+      <td class="total-cell">${fmtPeso(e.total)}</td>
+      <td><button class="btn-clear-row" onclick="deleteEntry('${e.id}')">🗑 Clear</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Monthly Totals ─────────────────────────────────────────────────────────
+function renderMonthly() {
+  const monthVal = document.getElementById('month-picker').value; // "YYYY-MM"
+  const filtered = entries.filter(e => e.date.startsWith(monthVal));
+
+  const cards = document.getElementById('branch-cards');
+  cards.innerHTML = BRANCHES.map(branch => {
+    const branchEntries = filtered.filter(e => e.branch === branch);
+    const total = branchEntries.reduce((s, e) => s + e.total, 0);
+    const items = branchEntries.reduce((s, e) => s + e.itemsSold, 0);
+    const cls = branch === 'Karuhatan' ? 'karuhatan' : 'puregold';
+    return `<div class="branch-card ${cls}">
+      <div class="bc-label">${branch === 'Karuhatan' ? '📍' : '🏬'} Branch</div>
+      <div class="bc-name">${branch}</div>
+      <div class="bc-total">${fmtPeso(total)}</div>
+      <div class="bc-items">${items} items sold · ${branchEntries.length} day${branchEntries.length !== 1 ? 's' : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Bar Chart ──────────────────────────────────────────────────────────────
+function renderChart() {
+  const canvas = document.getElementById('chart');
+  const ctx = canvas.getContext('2d');
+
+  // Set physical pixels for crisp rendering
+  const DPR = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || canvas.parentElement.clientWidth;
+  const H = 180;
+  canvas.width  = W * DPR;
+  canvas.height = H * DPR;
+  ctx.scale(DPR, DPR);
+
+  // Week: Monday to Sunday
+  const today = new Date();
+  const dow = today.getDay(); // 0=Sun
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((dow === 0 ? 7 : dow) - 1));
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return toDateStr(d);
+  });
+  const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  const karuData    = days.map(d => entries.filter(e => e.date === d && e.branch === 'Karuhatan').reduce((s,e) => s+e.total, 0));
+  const puregoldData = days.map(d => entries.filter(e => e.date === d && e.branch === 'Puregold North Commonwealth').reduce((s,e) => s+e.total, 0));
+
+  const maxVal = Math.max(...karuData, ...puregoldData, 1);
+
+  const PAD_L = 50, PAD_R = 10, PAD_T = 14, PAD_B = 32;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_T - PAD_B;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid lines
+  const gridLines = 4;
+  ctx.strokeStyle = '#E5E7EB';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= gridLines; i++) {
+    const y = PAD_T + chartH - (i / gridLines) * chartH;
+    ctx.beginPath();
+    ctx.moveTo(PAD_L, y);
+    ctx.lineTo(PAD_L + chartW, y);
+    ctx.stroke();
+    // Y label
+    ctx.fillStyle = '#9CA3AF';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'right';
+    const labelVal = (maxVal * i / gridLines);
+    ctx.fillText(labelVal >= 1000 ? `₱${(labelVal/1000).toFixed(1)}k` : `₱${Math.round(labelVal)}`, PAD_L - 4, y + 4);
+  }
+
+  // Bars
+  const groupW = chartW / 7;
+  const barW = Math.max(6, groupW * 0.32);
+  const gap = barW * 0.3;
+
+  days.forEach((_, i) => {
+    const groupX = PAD_L + i * groupW + groupW / 2;
+
+    // Karuhatan (purple)
+    const kVal = karuData[i];
+    const kH   = (kVal / maxVal) * chartH;
+    const kX   = groupX - barW - gap / 2;
+    ctx.fillStyle = '#6B21A8';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(kX, PAD_T + chartH - kH, barW, kH, [3,3,0,0]) : ctx.rect(kX, PAD_T + chartH - kH, barW, kH);
+    ctx.fill();
+
+    // Puregold (yellow)
+    const pVal = puregoldData[i];
+    const pH   = (pVal / maxVal) * chartH;
+    const pX   = groupX + gap / 2;
+    ctx.fillStyle = '#EAB308';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(pX, PAD_T + chartH - pH, barW, pH, [3,3,0,0]) : ctx.rect(pX, PAD_T + chartH - pH, barW, pH);
+    ctx.fill();
+
+    // X label
+    ctx.fillStyle = '#6B7280';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(dayLabels[i], groupX, PAD_T + chartH + 16);
+
+    // Highlight today
+    if (toDateStr(new Date()) === days[i]) {
+      ctx.fillStyle = 'rgba(107,33,168,0.08)';
+      ctx.fillRect(groupX - groupW / 2, PAD_T, groupW, chartH);
+    }
+  });
+}
+
+// ── CSV Export ─────────────────────────────────────────────────────────────
+function exportCSV() {
+  if (entries.length === 0) { showToast('No data to export yet.', 'error'); return; }
+  const rows = [['Date', 'Branch', 'Products', 'Items Sold', 'Total Sales (PHP)', 'Product Breakdown']];
+  entries.forEach(e => {
+    const breakdown = e.products.map(p => `${p.name}x${p.qty}@${p.price}`).join('; ');
+    rows.push([e.date, e.branch, e.products.length, e.itemsSold, e.total.toFixed(2), breakdown]);
+  });
+  const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'sago-loco-sales.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('CSV downloaded! 📥', 'success');
+}
+
+// ── Reset All ──────────────────────────────────────────────────────────────
+function resetAll() {
+  if (!confirm('Delete ALL sales data? This cannot be undone.')) return;
+  entries = [];
+  saveEntries();
+  render();
+  showToast('All data cleared.');
+}
+
+// ── XSS safety ─────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Resize chart on window resize ──────────────────────────────────────────
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderChart, 150);
+});
+
+init();
+</script>
+</body>
+</html>

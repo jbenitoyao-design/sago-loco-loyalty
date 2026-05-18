@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sago Loco — Loyalty Card</title>
+<style>
+  :root {
+    --purple: #6B21A8;
+    --purple-light: #9333EA;
+    --purple-dark: #4C1D95;
+    --yellow: #FDE047;
+    --yellow-dark: #EAB308;
+    --green-bg: #DCFCE7;
+    --green-border: #16A34A;
+    --red: #DC2626;
+    --gray-50: #F9FAFB;
+    --gray-100: #F3F4F6;
+    --gray-200: #E5E7EB;
+    --gray-500: #6B7280;
+    --gray-900: #111827;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg: 0 4px 20px rgba(107,33,168,0.15);
+    --stamp-empty: #EDE9FE;
+    --overlay: rgba(0,0,0,0.55);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-900);
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+
+  header {
+    background: var(--purple);
+    padding: 20px 16px 18px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(76,29,149,0.4);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 { color: var(--yellow); font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+  header p  { color: rgba(255,255,255,0.80); font-size: 0.82rem; margin-top: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .header-bubble {
+    display: inline-block;
+    background: var(--yellow);
+    color: var(--purple-dark);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 99px;
+    margin-top: 6px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .container { max-width: 480px; margin: 0 auto; padding: 16px 12px; }
+  section { margin-bottom: 20px; }
+
+  .card { background: #fff; border-radius: var(--radius-lg); box-shadow: var(--shadow); overflow: hidden; }
+  .card-header {
+    background: var(--purple-dark);
+    color: #fff;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-body { padding: 16px; }
+
+  /* Card ID */
+  .card-number {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--purple);
+    letter-spacing: 4px;
+    padding: 12px 0 4px;
+  }
+  .card-number-sub { text-align: center; font-size: 0.75rem; color: var(--gray-500); padding-bottom: 8px; }
+
+  /* Show-cashier hint */
+  .show-hint {
+    background: #F3E8FF;
+    border: 1.5px dashed #C4B5FD;
+    border-radius: var(--radius-md);
+    text-align: center;
+    padding: 10px 12px;
+    font-size: 0.8rem;
+    color: var(--purple);
+    font-weight: 600;
+    margin-top: 12px;
+  }
+
+  /* Stamp grid */
+  .stamp-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    padding: 20px 8px 8px;
+  }
+  .stamp-slot {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--stamp-empty);
+    border: 2.5px dashed #C4B5FD;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    user-select: none;
+  }
+  .stamp-slot.filled { background: var(--purple); border-color: var(--purple); box-shadow: 0 2px 10px rgba(107,33,168,0.35); }
+  .stamp-slot.pop { animation: stamp-pop 0.4s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes stamp-pop {
+    0%   { transform: scale(0.5); opacity: 0.4; }
+    60%  { transform: scale(1.25); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .progress-label { text-align: center; font-size: 0.85rem; color: var(--gray-500); font-weight: 600; margin: 6px 0 4px; }
+
+  /* Reward banner */
+  .reward-card {
+    border: 2.5px solid var(--yellow);
+    background: linear-gradient(135deg, #4C1D95 0%, #6B21A8 100%);
+    animation: reward-glow 2s ease-in-out infinite alternate;
+  }
+  @keyframes reward-glow {
+    from { box-shadow: 0 0 12px rgba(253,224,71,0.4); }
+    to   { box-shadow: 0 0 28px rgba(253,224,71,0.75); }
+  }
+  .reward-body { text-align: center; padding: 28px 16px; color: #fff; }
+  .reward-emoji { font-size: 3rem; margin-bottom: 10px; }
+  .reward-title { font-size: 1.5rem; font-weight: 800; color: var(--yellow); margin-bottom: 8px; }
+  .reward-sub { font-size: 0.9rem; color: rgba(255,255,255,0.9); line-height: 1.5; }
+  .reward-cta {
+    margin-top: 14px;
+    background: var(--yellow);
+    color: var(--purple-dark);
+    font-weight: 800;
+    font-size: 0.85rem;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    display: inline-block;
+  }
+
+  /* Thank-you */
+  .thankyou-card { background: linear-gradient(135deg, #064E3B 0%, #065F46 100%); border: 2.5px solid #6EE7B7; }
+  .thankyou-body { text-align: center; padding: 28px 16px; color: #fff; }
+  .ty-emoji { font-size: 2.8rem; margin-bottom: 10px; }
+  .ty-title { font-size: 1.3rem; font-weight: 800; color: #A7F3D0; margin-bottom: 8px; }
+  .ty-sub { font-size: 0.85rem; color: rgba(255,255,255,0.85); line-height: 1.5; }
+
+  /* History */
+  .history-list { list-style: none; }
+  .history-empty { text-align: center; color: var(--gray-500); font-size: 0.85rem; padding: 12px 0; }
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 0.85rem;
+    gap: 8px;
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-label { color: var(--purple); font-weight: 700; flex-shrink: 0; }
+  .history-redeem-label { color: var(--green-border); font-weight: 700; flex-shrink: 0; }
+  .history-time { color: var(--gray-500); font-size: 0.78rem; text-align: right; }
+
+  /* QR */
+  .qr-body { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 16px; }
+  .qr-img { border-radius: var(--radius-md); border: 3px solid var(--gray-200); display: block; }
+  .qr-hint { font-size: 0.78rem; color: var(--gray-500); text-align: center; }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--purple-dark); color: #fff;
+    padding: 10px 20px; border-radius: 99px;
+    font-size: 0.85rem; font-weight: 600;
+    box-shadow: var(--shadow-lg);
+    transition: transform 0.3s ease; z-index: 999; white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.success { background: var(--green-border); }
+  #toast.error   { background: var(--red); }
+
+  .hidden { display: none !important; }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .fade-in { animation: fade-in 0.3s ease; }
+
+  @media (max-width: 340px) { .stamp-slot { font-size: 1.1rem; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧋 Sago Loco Pearl Shakes</h1>
+  <p>Loyalty Card</p>
+  <span class="header-bubble">Buy 5, Get 1 Free</span>
+</header>
+
+<div class="container">
+
+  <!-- Card Identity -->
+  <section>
+    <div class="card">
+      <div class="card-header">🪪 Your Loyalty Card</div>
+      <div class="card-body">
+        <p class="card-number" id="card-display-id">SL-····</p>
+        <p class="card-number-sub">Your personal card number</p>
+        <div class="show-hint">📲 Show this screen to your cashier when ordering</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stamps (hidden when reward ready) -->
+  <section id="sec-stamps">
+    <div class="card">
+      <div class="card-header">🥭 Grande Mango Regal — Progress</div>
+      <div class="card-body">
+        <div class="stamp-grid" id="stamp-grid"></div>
+        <p class="progress-label" id="progress-label">0 / 5 stamps collected</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Reward Banner (shown at 5 stamps) -->
+  <section id="sec-reward" class="hidden">
+    <div class="card reward-card">
+      <div class="reward-body">
+        <div class="reward-emoji">🥭🎉</div>
+        <h2 class="reward-title">Reward Unlocked!</h2>
+        <p class="reward-sub">Show this screen to your cashier to claim your<br><strong>FREE Grande Mango Regal</strong></p>
+        <div class="reward-cta">👆 Tell your cashier to scan your card</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Thank-you (transient) -->
+  <section id="sec-thankyou" class="hidden">
+    <div class="card thankyou-card fade-in">
+      <div class="thankyou-body">
+        <div class="ty-emoji">🧡</div>
+        <h2 class="ty-title">Enjoy your free drink!</h2>
+        <p class="ty-sub">Your Grande Mango Regal has been redeemed.<br>Start collecting again!</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- History -->
+  <section>
+    <div class="card">
+      <div class="card-header">🕐 Stamp History</div>
+      <div class="card-body" id="history-body"></div>
+    </div>
+  </section>
+
+  <!-- QR (cashier scans this to identify the card) -->
+  <section>
+    <div class="card">
+      <div class="card-header">📲 Show to Cashier</div>
+      <div class="card-body qr-body">
+        <img id="qr-img" class="qr-img" src="" alt="Card QR" width="180" height="180">
+        <p class="qr-hint">Cashier scans this to add your stamp</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// Signing key — must match admin.html. Change both together.
+const SHARED_KEY = 'sagoLoco2026loyalty';
+
+const LOYALTY_KEY = 'sagoLoco_loyalty';
+let card = null;
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function uid() {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type ? `show ${type}` : 'show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.className = ''; }, 2400);
+}
+function fmtDateTime(iso) {
+  return new Date(iso).toLocaleString('en-PH', {
+    month:'short', day:'numeric', year:'numeric',
+    hour:'numeric', minute:'2-digit', hour12:true
+  });
+}
+// Simple but consistent hash — prevents casual URL tampering
+function sign(id, stamps, ev) {
+  const raw = id + '|' + stamps + '|' + ev + '|' + SHARED_KEY;
+  let h = 5381;
+  for (let i = 0; i < raw.length; i++) h = ((h * 33) ^ raw.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
+// ── Storage ────────────────────────────────────────────────────────────────
+function loadCard() {
+  try { return JSON.parse(localStorage.getItem(LOYALTY_KEY)); } catch { return null; }
+}
+function saveCard() { localStorage.setItem(LOYALTY_KEY, JSON.stringify(card)); }
+
+function createCard() {
+  const cardId = uid();
+  const displayId = 'SL-' + cardId.replace(/-/g,'').slice(-4).toUpperCase();
+  card = { cardId, displayId, stamps: 0, history: [], redeemCount: 0 };
+  saveCard();
+}
+
+// ── Process incoming stamp receipt from cashier ────────────────────────────
+function processRecv() {
+  const params = new URLSearchParams(window.location.search);
+  const recv = params.get('recv');
+  if (!recv) return;
+  try {
+    const d = JSON.parse(atob(recv));
+    if (!d.id || typeof d.s !== 'number' || !d.ev || !d.sig) return;
+    if (d.sig !== sign(d.id, d.s, d.ev)) { showToast('Invalid stamp receipt.', 'error'); return; }
+    if (card.cardId !== d.id) { showToast('This receipt is for a different card.', 'error'); return; }
+
+    if (d.ev === 'stamp') {
+      card.stamps = d.s;
+      card.history.push({ type:'stamp', iso: new Date().toISOString(), label:`Stamp #${d.s}` });
+      showToast(`Stamp #${d.s} added! 🥭`, 'success');
+    } else if (d.ev === 'redeem') {
+      card.stamps = 0;
+      card.history.push({ type:'redeem', iso: new Date().toISOString(), label:'🎉 Free Drink Redeemed' });
+      card.redeemCount = (card.redeemCount || 0) + 1;
+      // Show thank-you briefly
+      document.getElementById('sec-reward').classList.add('hidden');
+      const ty = document.getElementById('sec-thankyou');
+      ty.classList.remove('hidden');
+      setTimeout(() => { ty.classList.add('hidden'); render(); }, 2500);
+    }
+    saveCard();
+    window.history.replaceState({}, '', window.location.pathname);
+  } catch(e) {}
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  document.getElementById('card-display-id').textContent = escHtml(card.displayId);
+
+  // Stamp grid
+  const grid = document.getElementById('stamp-grid');
+  let html = '';
+  for (let i = 0; i < 5; i++) {
+    const filled = i < card.stamps;
+    html += `<div class="stamp-slot${filled ? ' filled' : ''}" id="slot${i}">${filled ? '🥭' : ''}</div>`;
+  }
+  grid.innerHTML = html;
+  document.getElementById('progress-label').textContent = `${card.stamps} / 5 stamps collected`;
+
+  // State
+  const atReward = card.stamps >= 5;
+  document.getElementById('sec-stamps').classList.toggle('hidden', atReward);
+  document.getElementById('sec-reward').classList.toggle('hidden', !atReward);
+
+  // History
+  const body = document.getElementById('history-body');
+  if (!card.history.length) {
+    body.innerHTML = '<p class="history-empty">No stamps yet — buy a drink and show this card! 🧋</p>';
+  } else {
+    const items = [...card.history].reverse();
+    let h = '<ul class="history-list">';
+    for (const e of items) {
+      const cls = e.type === 'redeem' ? 'history-redeem-label' : 'history-label';
+      h += `<li class="history-item"><span class="${cls}">${escHtml(e.label)}</span><span class="history-time">${escHtml(fmtDateTime(e.iso))}</span></li>`;
+    }
+    h += '</ul>';
+    body.innerHTML = h;
+  }
+}
+
+// ── QR (encodes the cardId — cashier scans to identify) ────────────────────
+function setQrCode() {
+  // QR encodes just the cardId text so cashier can read it
+  const enc = encodeURIComponent(card.cardId);
+  document.getElementById('qr-img').src =
+    `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${enc}`;
+}
+
+// ── Animate newly received stamp ───────────────────────────────────────────
+function animateLastStamp() {
+  const idx = card.stamps - 1;
+  if (idx < 0) return;
+  setTimeout(() => {
+    const slot = document.getElementById(`slot${idx}`);
+    if (slot) { slot.classList.add('pop'); setTimeout(() => slot.classList.remove('pop'), 400); }
+  }, 20);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+function init() {
+  card = loadCard();
+  if (!card) createCard();
+  processRecv(); // apply cashier receipt if present
+  render();
+  setQrCode();
+  // Animate if stamp was just received
+  if (new URLSearchParams(window.location.search).get('recv')) animateLastStamp();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

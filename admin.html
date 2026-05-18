@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sago Loco — Cashier Admin</title>
+<style>
+  :root {
+    --purple: #6B21A8;
+    --purple-light: #9333EA;
+    --purple-dark: #4C1D95;
+    --yellow: #FDE047;
+    --green-bg: #DCFCE7;
+    --green-border: #16A34A;
+    --green-text: #14532D;
+    --red: #DC2626;
+    --red-light: #FEE2E2;
+    --gray-50: #F9FAFB;
+    --gray-100: #F3F4F6;
+    --gray-200: #E5E7EB;
+    --gray-300: #D1D5DB;
+    --gray-500: #6B7280;
+    --gray-700: #374151;
+    --gray-900: #111827;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.10);
+    --shadow-lg: 0 4px 20px rgba(107,33,168,0.15);
+    --overlay: rgba(0,0,0,0.55);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-900);
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+
+  /* ── PIN Gate ─────────────────────────────── */
+  .gate {
+    position: fixed; inset: 0;
+    background: var(--purple-dark);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 900;
+    flex-direction: column;
+    padding: 24px;
+  }
+  .gate-logo { font-size: 3rem; margin-bottom: 12px; }
+  .gate h2 { color: var(--yellow); font-size: 1.4rem; font-weight: 800; margin-bottom: 4px; }
+  .gate-sub { color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 28px; }
+  .gate-box {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    padding: 28px 20px 32px;
+    width: 100%;
+    max-width: 320px;
+  }
+  .gate-title { text-align: center; font-size: 0.9rem; font-weight: 700; color: var(--gray-700); margin-bottom: 20px; }
+
+  /* ── PIN shared styles ────────────────────── */
+  .pin-dots { display: flex; justify-content: center; gap: 14px; margin-bottom: 24px; }
+  .pin-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--gray-200);
+    transition: background 0.15s, transform 0.1s;
+  }
+  .pin-dot.filled { background: var(--purple); transform: scale(1.15); }
+  .pin-dots.shake { animation: shake 0.35s ease; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+  .pin-keypad {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; max-width: 280px; margin: 0 auto;
+  }
+  .pin-key {
+    aspect-ratio: 1; border-radius: var(--radius-md);
+    border: 1.5px solid var(--gray-200); background: var(--gray-50);
+    font-size: 1.3rem; font-weight: 700; color: var(--gray-900);
+    cursor: pointer;
+    transition: background 0.12s, transform 0.08s;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .pin-key:active { background: var(--gray-200); transform: scale(0.93); }
+  .pin-key.backspace { color: var(--red); font-size: 1.1rem; }
+  .pin-key.empty { background: transparent; border-color: transparent; cursor: default; pointer-events: none; }
+
+  /* ── Main UI ──────────────────────────────── */
+  header {
+    background: var(--purple);
+    padding: 18px 16px 16px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(76,29,149,0.4);
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-left { text-align: left; }
+  header h1 { color: var(--yellow); font-size: 1.2rem; font-weight: 800; line-height: 1.1; }
+  header p  { color: rgba(255,255,255,0.75); font-size: 0.75rem; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .btn-lock {
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.3);
+    color: #fff; font-size: 0.75rem; font-weight: 700;
+    padding: 6px 12px; border-radius: 99px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-lock:hover { background: rgba(255,255,255,0.25); }
+
+  .container { max-width: 480px; margin: 0 auto; padding: 16px 12px; }
+  section { margin-bottom: 20px; }
+
+  .card { background: #fff; border-radius: var(--radius-lg); box-shadow: var(--shadow); overflow: hidden; }
+  .card-header {
+    background: var(--purple-dark); color: #fff;
+    padding: 10px 16px; font-size: 0.85rem; font-weight: 700;
+    letter-spacing: 0.3px; display: flex; align-items: center; gap: 8px;
+  }
+  .card-body { padding: 16px; }
+
+  /* Search */
+  .search-row { display: flex; gap: 8px; }
+  .search-input {
+    flex: 1; padding: 11px 12px;
+    border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
+    font-size: 0.95rem; color: var(--gray-900); background: var(--gray-50);
+    outline: none; transition: border-color 0.15s;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .search-input:focus { border-color: var(--purple); background: #fff; }
+  .btn-search {
+    padding: 11px 16px; background: var(--purple); color: #fff;
+    border: none; border-radius: var(--radius-sm); font-weight: 700;
+    font-size: 0.9rem; cursor: pointer; min-height: 44px;
+    transition: filter 0.15s;
+  }
+  .btn-search:hover { filter: brightness(1.1); }
+
+  /* Customer panel */
+  .customer-panel {
+    background: var(--gray-50);
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    margin-top: 12px;
+  }
+  .customer-panel.reward {
+    background: #FFF9C4;
+    border-color: var(--yellow);
+  }
+  .cp-id { font-size: 1.1rem; font-weight: 800; color: var(--purple); letter-spacing: 2px; }
+  .cp-meta { font-size: 0.78rem; color: var(--gray-500); margin-top: 2px; margin-bottom: 12px; }
+
+  /* Mini stamp grid */
+  .mini-stamps { display: flex; gap: 6px; margin-bottom: 12px; }
+  .mini-slot {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #EDE9FE; border: 2px dashed #C4B5FD;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+  .mini-slot.filled { background: var(--purple); border-color: var(--purple); }
+
+  .cp-progress { font-size: 0.82rem; font-weight: 700; color: var(--gray-700); margin-bottom: 14px; }
+  .cp-progress.reward-text { color: #7C3F00; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 11px 20px; border-radius: var(--radius-sm);
+    font-size: 0.9rem; font-weight: 700; border: none; cursor: pointer;
+    transition: filter 0.15s, transform 0.1s; min-height: 44px; letter-spacing: 0.2px;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-stamp {
+    background: var(--purple); color: #fff; width: 100%;
+    font-size: 0.95rem; box-shadow: var(--shadow-lg);
+  }
+  .btn-stamp:hover { filter: brightness(1.1); }
+  .btn-stamp:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; }
+  .btn-redeem {
+    background: var(--yellow); color: #7C3F00;
+    font-weight: 800; width: 100%; margin-top: 8px; font-size: 0.95rem;
+  }
+  .btn-redeem:hover { filter: brightness(1.05); }
+
+  /* Receipt QR */
+  .receipt-box {
+    background: var(--green-bg);
+    border: 1.5px solid var(--green-border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    text-align: center;
+    margin-top: 12px;
+    display: none;
+  }
+  .receipt-box.show { display: block; }
+  .receipt-title { font-size: 0.85rem; font-weight: 700; color: var(--green-text); margin-bottom: 10px; }
+  .receipt-qr { border-radius: var(--radius-md); border: 3px solid #fff; display: block; margin: 0 auto; }
+  .receipt-hint { font-size: 0.75rem; color: var(--green-text); margin-top: 8px; }
+  .receipt-local { font-size: 0.8rem; color: var(--green-text); font-weight: 700; margin-top: 6px; }
+
+  /* Customer list */
+  .cust-list { list-style: none; }
+  .cust-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--gray-100);
+    cursor: pointer; transition: background 0.1s;
+    gap: 8px;
+  }
+  .cust-row:last-child { border-bottom: none; }
+  .cust-row:hover { background: var(--gray-50); margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+  .cust-id { font-size: 0.88rem; font-weight: 700; color: var(--purple); }
+  .cust-stamps { font-size: 0.78rem; color: var(--gray-500); }
+  .cust-badge {
+    font-size: 0.65rem; font-weight: 700; padding: 2px 8px;
+    border-radius: 99px; white-space: nowrap;
+  }
+  .badge-collecting { background: #EDE9FE; color: var(--purple); }
+  .badge-reward { background: var(--yellow); color: #7C3F00; }
+  .badge-new { background: var(--gray-100); color: var(--gray-500); }
+  .empty-list { text-align: center; color: var(--gray-500); font-size: 0.85rem; padding: 16px 0; }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--purple-dark); color: #fff;
+    padding: 10px 20px; border-radius: 99px;
+    font-size: 0.85rem; font-weight: 600;
+    box-shadow: var(--shadow-lg);
+    transition: transform 0.3s ease; z-index: 999; white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.success { background: var(--green-border); }
+  #toast.error   { background: var(--red); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- PIN Gate -->
+<div id="gate" class="gate">
+  <div class="gate-logo">🧋</div>
+  <h2>Sago Loco</h2>
+  <p class="gate-sub">Cashier access only</p>
+  <div class="gate-box">
+    <p class="gate-title">🔒 Enter Cashier PIN</p>
+    <div class="pin-dots" id="gate-dots">
+      <span class="pin-dot" id="gdot0"></span>
+      <span class="pin-dot" id="gdot1"></span>
+      <span class="pin-dot" id="gdot2"></span>
+      <span class="pin-dot" id="gdot3"></span>
+    </div>
+    <div class="pin-keypad" id="gate-keypad"></div>
+  </div>
+</div>
+
+<!-- Main Admin UI (shown after PIN) -->
+<div id="main" class="hidden">
+
+  <header>
+    <div class="header-left">
+      <h1>🧋 Sago Loco — Admin</h1>
+      <p>Loyalty Card Manager</p>
+    </div>
+    <button class="btn-lock" onclick="lock()">🔒 Lock</button>
+  </header>
+
+  <div class="container">
+
+    <!-- Card Lookup -->
+    <section>
+      <div class="card">
+        <div class="card-header">🔍 Look Up Customer Card</div>
+        <div class="card-body">
+          <div class="search-row">
+            <input id="search-input" class="search-input" type="text"
+              placeholder="Card ID e.g. SL-A3F2"
+              maxlength="40"
+              oninput="this.value = this.value.toUpperCase()"
+              onkeydown="if(event.key==='Enter') lookupCard()">
+            <button class="btn-search" onclick="lookupCard()">Look Up</button>
+          </div>
+
+          <!-- Customer panel (hidden until found) -->
+          <div id="customer-panel" class="customer-panel hidden">
+            <p class="cp-id" id="cp-id">SL-XXXX</p>
+            <p class="cp-meta" id="cp-meta"></p>
+            <div class="mini-stamps" id="mini-stamps"></div>
+            <p class="cp-progress" id="cp-progress"></p>
+            <button class="btn btn-stamp" id="btn-stamp" onclick="doStamp()">+ Add Stamp</button>
+            <button class="btn btn-redeem hidden" id="btn-redeem" onclick="doRedeem()">🎉 Mark as Redeemed</button>
+          </div>
+
+          <!-- Receipt QR (shown after stamp/redeem) -->
+          <div id="receipt-box" class="receipt-box">
+            <p class="receipt-title" id="receipt-title">✅ Stamp added — show customer to scan</p>
+            <img id="receipt-qr" class="receipt-qr" src="" alt="Receipt QR" width="160" height="160">
+            <p class="receipt-hint" id="receipt-hint">Customer scans this to update their card</p>
+            <p class="receipt-local hidden" id="receipt-local"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- All Customers -->
+    <section>
+      <div class="card">
+        <div class="card-header">👥 All Customers</div>
+        <div class="card-body" id="cust-list-body"></div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+// IMPORTANT: Change CASHIER_PIN and SHARED_KEY before deploying.
+// SHARED_KEY must match loyalty.html exactly.
+const CASHIER_PIN = '1234';
+const SHARED_KEY  = 'sagoLoco2026loyalty';
+// ────────────────────────────────────────────────────────────────────────────
+
+const ADMIN_KEY = 'sagoLoco_admin_v1';
+
+let pinBuffer = '';
+let adminData  = null;   // { customers: { [cardId]: {...} } }
+let activeCard = null;   // currently looked-up customer object + cardId ref
+let activeId   = null;
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type ? `show ${type}` : 'show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.className = ''; }, 2400);
+}
+function fmtDateTime(iso) {
+  return new Date(iso).toLocaleString('en-PH', {
+    month:'short', day:'numeric', year:'numeric',
+    hour:'numeric', minute:'2-digit', hour12:true
+  });
+}
+function sign(id, stamps, ev) {
+  const raw = id + '|' + stamps + '|' + ev + '|' + SHARED_KEY;
+  let h = 5381;
+  for (let i = 0; i < raw.length; i++) h = ((h * 33) ^ raw.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
+// ── Admin Storage ──────────────────────────────────────────────────────────
+function loadAdmin() {
+  try { return JSON.parse(localStorage.getItem(ADMIN_KEY)) || { customers: {} }; }
+  catch { return { customers: {} }; }
+}
+function saveAdmin() { localStorage.setItem(ADMIN_KEY, JSON.stringify(adminData)); }
+
+// ── PIN Gate ───────────────────────────────────────────────────────────────
+function renderGateKeypad() {
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  let html = '';
+  for (const k of keys) {
+    if (k === '') {
+      html += `<button class="pin-key empty" disabled></button>`;
+    } else if (k === '⌫') {
+      html += `<button class="pin-key backspace" onclick="gateBack()" aria-label="backspace">⌫</button>`;
+    } else {
+      html += `<button class="pin-key" onclick="gateKey('${k}')">${k}</button>`;
+    }
+  }
+  document.getElementById('gate-keypad').innerHTML = html;
+}
+
+function gateKey(d) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += d;
+  updateGateDots();
+  if (pinBuffer.length === 4) setTimeout(gateValidate, 80);
+}
+function gateBack() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updateGateDots();
+}
+function updateGateDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById(`gdot${i}`).classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+function gateValidate() {
+  if (pinBuffer === CASHIER_PIN) {
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('main').classList.remove('hidden');
+    adminData = loadAdmin();
+    renderCustList();
+  } else {
+    const dots = document.getElementById('gate-dots');
+    dots.classList.add('shake');
+    setTimeout(() => { dots.classList.remove('shake'); pinBuffer = ''; updateGateDots(); }, 400);
+    showToast('Incorrect PIN.', 'error');
+  }
+}
+function lock() {
+  pinBuffer = '';
+  updateGateDots();
+  document.getElementById('main').classList.add('hidden');
+  document.getElementById('gate').classList.remove('hidden');
+  // reset search
+  activeCard = null; activeId = null;
+  document.getElementById('search-input').value = '';
+  document.getElementById('customer-panel').classList.add('hidden');
+  document.getElementById('receipt-box').classList.remove('show');
+}
+
+// ── Card Lookup ────────────────────────────────────────────────────────────
+function lookupCard() {
+  const raw = document.getElementById('search-input').value.trim().toUpperCase();
+  if (!raw) { showToast('Enter a card ID.', 'error'); return; }
+
+  // Accept either displayId (SL-XXXX) or full cardId (UUID)
+  const found = findCustomer(raw);
+  if (found) {
+    activeId   = found.cardId;
+    activeCard = found;
+    renderCustomerPanel();
+    document.getElementById('receipt-box').classList.remove('show');
+  } else {
+    // New customer — create entry
+    const displayId = raw.startsWith('SL-') ? raw : 'SL-' + raw.slice(-4);
+    const cardId = raw; // treat input as cardId if not found
+    adminData.customers[cardId] = { displayId, stamps: 0, history: [], redeemCount: 0, firstSeen: new Date().toISOString() };
+    saveAdmin();
+    activeId   = cardId;
+    activeCard = adminData.customers[cardId];
+    renderCustomerPanel();
+    renderCustList();
+    showToast('New customer registered! 👋', 'success');
+    document.getElementById('receipt-box').classList.remove('show');
+  }
+}
+
+function findCustomer(query) {
+  // Try exact cardId match first, then displayId match
+  const custs = adminData.customers;
+  if (custs[query]) return { ...custs[query], cardId: query };
+  for (const [id, c] of Object.entries(custs)) {
+    if (c.displayId === query || c.displayId === 'SL-' + query) return { ...c, cardId: id };
+  }
+  return null;
+}
+
+// ── Customer Panel ─────────────────────────────────────────────────────────
+function renderCustomerPanel() {
+  const c = activeCard;
+  const panel = document.getElementById('customer-panel');
+  panel.classList.remove('hidden');
+  panel.classList.toggle('reward', c.stamps >= 5);
+
+  document.getElementById('cp-id').textContent = escHtml(c.displayId);
+  document.getElementById('cp-meta').textContent =
+    `Redeemed: ${c.redeemCount || 0}× · Card: ${escHtml(activeId.slice(0,8))}…`;
+
+  // Mini stamps
+  let msHtml = '';
+  for (let i = 0; i < 5; i++) {
+    msHtml += `<div class="mini-slot${i < c.stamps ? ' filled' : ''}">${i < c.stamps ? '🥭' : ''}</div>`;
+  }
+  document.getElementById('mini-stamps').innerHTML = msHtml;
+
+  const progressEl = document.getElementById('cp-progress');
+  if (c.stamps >= 5) {
+    progressEl.textContent = '🎉 Reward ready — 5/5 stamps!';
+    progressEl.className = 'cp-progress reward-text';
+  } else {
+    progressEl.textContent = `${c.stamps} / 5 stamps — ${5 - c.stamps} more to free drink`;
+    progressEl.className = 'cp-progress';
+  }
+
+  document.getElementById('btn-stamp').disabled = c.stamps >= 5;
+  document.getElementById('btn-redeem').classList.toggle('hidden', c.stamps < 5);
+}
+
+// ── Stamp ──────────────────────────────────────────────────────────────────
+function doStamp() {
+  if (!activeCard || activeCard.stamps >= 5) return;
+  activeCard.stamps += 1;
+  activeCard.history = activeCard.history || [];
+  activeCard.history.push({ type:'stamp', iso: new Date().toISOString(), label:`Stamp #${activeCard.stamps}` });
+  adminData.customers[activeId] = activeCard;
+  saveAdmin();
+  renderCustomerPanel();
+  renderCustList();
+  showReceipt('stamp', activeCard.stamps);
+  showToast(`Stamp #${activeCard.stamps} added! 🥭`, 'success');
+}
+
+// ── Redeem ─────────────────────────────────────────────────────────────────
+function doRedeem() {
+  if (!activeCard || activeCard.stamps < 5) return;
+  activeCard.stamps = 0;
+  activeCard.redeemCount = (activeCard.redeemCount || 0) + 1;
+  activeCard.history = activeCard.history || [];
+  activeCard.history.push({ type:'redeem', iso: new Date().toISOString(), label:'🎉 Free Drink Redeemed' });
+  adminData.customers[activeId] = activeCard;
+  saveAdmin();
+  renderCustomerPanel();
+  renderCustList();
+  showReceipt('redeem', 0);
+  showToast('Reward redeemed! 🎉', 'success');
+}
+
+// ── Receipt QR ────────────────────────────────────────────────────────────
+function showReceipt(ev, newStamps) {
+  const payload = btoa(JSON.stringify({
+    id: activeId,
+    s: newStamps,
+    ev,
+    sig: sign(activeId, newStamps, ev)
+  }));
+
+  // Build receipt URL (loyalty.html in same directory)
+  const loyaltyUrl = window.location.href.replace(/admin\.html.*$/, 'loyalty.html');
+  const receiptUrl = loyaltyUrl + '?recv=' + encodeURIComponent(payload);
+
+  const box = document.getElementById('receipt-box');
+  const img = document.getElementById('receipt-qr');
+  const title = document.getElementById('receipt-title');
+  const hint  = document.getElementById('receipt-hint');
+  const local = document.getElementById('receipt-local');
+
+  title.textContent = ev === 'stamp'
+    ? `✅ Stamp #${newStamps} added — let customer scan`
+    : '🎉 Redeemed! Let customer scan to confirm';
+
+  const isLocal = window.location.protocol === 'file:';
+  if (isLocal) {
+    // Can't generate cross-device QR from file:// — show count verbally
+    img.style.display = 'none';
+    hint.textContent = '';
+    local.textContent = ev === 'stamp'
+      ? `Tell customer: "You now have ${newStamps} stamp${newStamps !== 1 ? 's' : ''}!"`
+      : 'Tell customer: "Your free drink is confirmed! Starting fresh."';
+    local.classList.remove('hidden');
+  } else {
+    img.style.display = 'block';
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(receiptUrl)}`;
+    hint.textContent = 'Customer scans with phone camera to update their card';
+    local.classList.add('hidden');
+  }
+
+  box.classList.add('show');
+}
+
+// ── Customer List ──────────────────────────────────────────────────────────
+function renderCustList() {
+  const body = document.getElementById('cust-list-body');
+  const custs = Object.entries(adminData.customers);
+  if (!custs.length) {
+    body.innerHTML = '<p class="empty-list">No customers yet. Look up a card ID to add one.</p>';
+    return;
+  }
+  // Sort: reward-ready first, then by stamps desc
+  custs.sort((a, b) => {
+    const ra = a[1].stamps >= 5 ? 1 : 0;
+    const rb = b[1].stamps >= 5 ? 1 : 0;
+    return rb - ra || b[1].stamps - a[1].stamps;
+  });
+  let html = '<ul class="cust-list">';
+  for (const [id, c] of custs) {
+    const badge = c.stamps >= 5
+      ? `<span class="cust-badge badge-reward">🎉 Reward Ready</span>`
+      : c.stamps > 0
+        ? `<span class="cust-badge badge-collecting">${c.stamps}/5 stamps</span>`
+        : `<span class="cust-badge badge-new">New</span>`;
+    html += `<li class="cust-row" onclick="selectFromList('${escHtml(id)}')">
+      <div>
+        <div class="cust-id">${escHtml(c.displayId)}</div>
+        <div class="cust-stamps">${c.stamps}/5 · Redeemed ${c.redeemCount||0}×</div>
+      </div>
+      ${badge}
+    </li>`;
+  }
+  html += '</ul>';
+  body.innerHTML = html;
+}
+
+function selectFromList(cardId) {
+  const c = adminData.customers[cardId];
+  if (!c) return;
+  activeId   = cardId;
+  activeCard = c;
+  document.getElementById('search-input').value = c.displayId;
+  renderCustomerPanel();
+  document.getElementById('receipt-box').classList.remove('show');
+  document.getElementById('customer-panel').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  renderGateKeypad();
+});
+</script>
+</body>
+</html>
