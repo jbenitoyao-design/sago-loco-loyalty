@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sago Loco — Cashier Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
   :root {
     --purple: #6B21A8;
@@ -449,6 +450,14 @@
 // SHARED_KEY must match loyalty.html exactly.
 const CASHIER_PIN = '1234';
 const SHARED_KEY  = 'sagoLoco2026loyalty';
+
+// ── EMAILJS CONFIG ───────────────────────────────────────────────────────────
+// Sign up free at emailjs.com, then fill in your credentials below.
+// Leave as-is to disable email notifications.
+const EMAILJS_PUBLIC_KEY  = '';   // e.g. 'abc123XYZ'
+const EMAILJS_SERVICE_ID  = '';   // e.g. 'service_xxxxxxx'
+const EMAILJS_TEMPLATE_ID = '';   // e.g. 'template_xxxxxxx'
+// ─────────────────────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────────────────────
 
 const ADMIN_KEY = 'sagoLoco_admin_v1';
@@ -659,6 +668,7 @@ function doRedeem() {
   renderCustList();
   showReceipt('redeem', 0);
   showToast('Reward redeemed! 🎉', 'success');
+  sendRedemptionEmail(activeId, activeCard);
 }
 
 // ── Receipt QR ────────────────────────────────────────────────────────────
@@ -745,6 +755,18 @@ function selectFromList(displayId) {
   renderCustomerPanel();
   document.getElementById('receipt-box').classList.remove('show');
   document.getElementById('customer-panel').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+// ── Email Notification ─────────────────────────────────────────────────────
+function sendRedemptionEmail(displayId, customer) {
+  if (!EMAILJS_PUBLIC_KEY) return;
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    card_id:      displayId,
+    redeem_count: customer.redeemCount,
+    timestamp:    new Date().toLocaleString('en-PH', { dateStyle:'medium', timeStyle:'short' }),
+    total_stamps: (customer.history || []).filter(h => h.type === 'stamp').length,
+  }).catch(() => {});
 }
 
 // ── History Toggle ─────────────────────────────────────────────────────────
